@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env                       
+
+# IDE
+.vscode/
+.idea/
+
+# 数据库
+*.db
+*.sqlite
+
+# 日志
+*.log
+
+# 半成品 C 模块（先不提交）
+backend/Makefile
+backend/c_modules/
+
+# 未完成的功能（先不提交）
+backend/app/routes/checkin.py
+backend/app/services/checkin_service.py
+backend/app/routes/plan.py
+backend/app/services/plan_service.py
