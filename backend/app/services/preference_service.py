@@ -42,3 +42,21 @@ class PreferenceService:
         db.session.delete(pref)
         db.session.commit()
         return True, None
+    
+    @staticmethod
+    def update_preferences(user_id: int, tags: list):
+        """批量更新用户偏好（先删后增）"""
+        user = User.query.get(user_id)
+        if not user:
+            return None, "用户不存在"
+        
+        # 删除该用户所有偏好
+        Preference.query.filter_by(user_id=user_id).delete()
+        
+        # 批量添加新偏好
+        for tag in tags:
+            pref = Preference(user_id=user_id, category='taste', value=tag)
+            db.session.add(pref)
+        
+        db.session.commit()
+        return True, None

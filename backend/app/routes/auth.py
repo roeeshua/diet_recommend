@@ -14,7 +14,11 @@ def register():
     
     user, error = AuthService.register(
         username=data.get('username'),
-        password=data.get('password')
+        password=data.get('password'),
+        age=data.get('age'),
+        gender=data.get('gender'),
+        height=data.get('height'),
+        weight=data.get('weight')
     )
     
     if error:

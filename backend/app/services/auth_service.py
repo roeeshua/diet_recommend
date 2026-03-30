@@ -5,7 +5,7 @@ from ..utils.jwt import generate_token
 
 class AuthService:
     @staticmethod
-    def register(username, password):
+    def register(username, password, age=None, gender=None, height=None, weight=None):
         """注册"""
         # 检查用户名是否存在
         if User.query.filter_by(username=username).first():
@@ -14,7 +14,11 @@ class AuthService:
         # 创建新用户
         user = User(
             username=username,
-            password=hash_password(password)
+            password=hash_password(password),
+            age=age,
+            gender=gender,
+            height=height,
+            weight=weight
         )
         db.session.add(user)
         db.session.commit()

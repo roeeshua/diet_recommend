@@ -43,3 +43,18 @@ def delete_preference(user_id, pref_id):
         return jsonify({'code': 404, 'message': error}), 404
     
     return jsonify({'code': 200, 'message': '删除成功'}), 200
+
+@preference_bp.route('/user/<int:user_id>/preferences/batch', methods=['PUT'])
+def batch_update_preferences(user_id):
+    """批量更新用户偏好"""
+    data = request.get_json()
+    tags = data.get('tags', [])
+    
+    if not isinstance(tags, list):
+        return jsonify({'code': 400, 'message': 'tags 必须是数组'}), 400
+    
+    success, error = PreferenceService.update_preferences(user_id, tags)
+    if error:
+        return jsonify({'code': 404, 'message': error}), 404
+    
+    return jsonify({'code': 200, 'message': '更新成功'}), 200

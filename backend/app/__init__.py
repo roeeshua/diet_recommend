@@ -14,16 +14,18 @@ def create_app(config_class=Config):
     
     # 注册蓝图
     from .routes.auth import auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/api')
-
     from .routes.user import user_bp
-    app.register_blueprint(user_bp, url_prefix='/api')
-
-    from .routes.preference import preference_bp
-    app.register_blueprint(preference_bp, url_prefix='/api')
-
     from .routes.food import food_bp
+    from .routes.preference import preference_bp
+    from .routes.recommend import recommend_bp
+    from .routes.plan import plan_bp
+    
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(user_bp, url_prefix='/api')
     app.register_blueprint(food_bp, url_prefix='/api')
+    app.register_blueprint(preference_bp, url_prefix='/api')
+    app.register_blueprint(recommend_bp, url_prefix='/api')
+    app.register_blueprint(plan_bp, url_prefix='/api')
     
     @app.route('/health')
     def health():
