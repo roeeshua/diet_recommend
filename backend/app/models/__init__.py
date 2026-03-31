@@ -6,5 +6,6 @@ from .preference import Preference
 from .food import Food
 from .plan import Plan
 from .checkin import Checkin
+from .user_meal import UserMeal
 
-__all__ = ['User', 'Preference', 'Food', 'Plan', 'Checkin']
+__all__ = ['User', 'Preference', 'Food', 'Plan', 'Checkin', 'UserMeal']

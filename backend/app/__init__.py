@@ -19,13 +19,17 @@ def create_app(config_class=Config):
     from .routes.preference import preference_bp
     from .routes.recommend import recommend_bp
     from .routes.plan import plan_bp
-    
+    from .routes.checkin import checkin_bp
+    from .routes.ai import ai_bp
+
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api')
     app.register_blueprint(food_bp, url_prefix='/api')
     app.register_blueprint(preference_bp, url_prefix='/api')
     app.register_blueprint(recommend_bp, url_prefix='/api')
     app.register_blueprint(plan_bp, url_prefix='/api')
+    app.register_blueprint(checkin_bp, url_prefix='/api')
+    app.register_blueprint(ai_bp, url_prefix='/api')
     
     @app.route('/health')
     def health():

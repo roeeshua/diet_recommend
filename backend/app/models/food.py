@@ -5,10 +5,18 @@ class Food(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(50))  # 主食/蛋白质/蔬菜/水果
-    calories = db.Column(db.Float)       # 每100g热量
-    season = db.Column(db.String(20))    # 春季/夏季/秋季/冬季/四季
-    tags = db.Column(db.String(200))     # 标签，如"辣","低卡"
+    category = db.Column(db.String(50))
+    calories = db.Column(db.Float)
+    season = db.Column(db.String(20))
+    tags = db.Column(db.String(200))
+    
+    # 新增营养指标字段（十分制）
+    protein = db.Column(db.Integer, default=5)      # 蛋白质
+    fiber = db.Column(db.Integer, default=5)        # 膳食纤维
+    vitamins = db.Column(db.Integer, default=5)     # 微量元素
+    sugar = db.Column(db.Integer, default=5)        # 添加糖
+    saturated_fat = db.Column(db.Integer, default=5) # 饱和脂肪
+    sodium = db.Column(db.Integer, default=5)       # 钠
     
     def to_dict(self):
         return {
@@ -17,5 +25,11 @@ class Food(db.Model):
             'category': self.category,
             'calories': self.calories,
             'season': self.season,
-            'tags': self.tags.split(',') if self.tags else []
+            'tags': self.tags.split(',') if self.tags else [],
+            'protein': self.protein,
+            'fiber': self.fiber,
+            'vitamins': self.vitamins,
+            'sugar': self.sugar,
+            'saturated_fat': self.saturated_fat,
+            'sodium': self.sodium
         }
