@@ -15,7 +15,6 @@ const router = createRouter({
     routes
 })
 
-// 路由守卫：检查登录状态
 router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token')
     if (to.meta.requiresAuth && !token) {

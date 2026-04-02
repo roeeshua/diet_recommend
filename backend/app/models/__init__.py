@@ -4,8 +4,8 @@ from .. import db
 from .user import User
 from .preference import Preference
 from .food import Food
-from .plan import Plan
+from .user_plan import UserPlan
 from .checkin import Checkin
 from .user_meal import UserMeal
 
-__all__ = ['User', 'Preference', 'Food', 'Plan', 'Checkin', 'UserMeal']
+__all__ = ['User', 'Preference', 'Food', 'UserPlan', 'Checkin', 'UserMeal']

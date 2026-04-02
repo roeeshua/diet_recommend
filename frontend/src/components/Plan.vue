@@ -1,166 +1,180 @@
 <template>
     <div class="plan-container">
-        <h2>今日饮食计划</h2>
+        <h2>饮食计划</h2>
+        <p class="desc">AI 会根据你的个人信息和饮食偏好，为你生成个性化饮食计划</p>
         
-        <div class="date-picker">
-            <el-date-picker 
-                v-model="selectedDate" 
-                type="date" 
-                placeholder="选择日期"
-                @change="loadPlan"
-            />
-            <el-button type="primary" @click="regeneratePlan" :loading="loading">
-                重新生成
+        <div class="actions">
+            <el-button type="primary" @click="generatePlan" :loading="generating">
+                🤖 生成今日计划
             </el-button>
         </div>
         
-        <el-row :gutter="20" v-if="plan">
-            <el-col :span="8">
-                <el-card class="meal-card breakfast">
-                    <template #header>
-                        <div class="card-header">
-                            <span>🌅 早餐</span>
-                            <span class="calories">{{ getMealCalories(plan.breakfast) }} 卡</span>
+        <div v-if="currentPlan" class="plan-result">
+            <el-card class="plan-card">
+                <template #header>
+                    <div class="card-header">
+                        <span>🍱 AI 推荐计划</span>
+                        <div class="card-actions">
+                            <el-input
+                                v-model="planName"
+                                placeholder="计划名称"
+                                style="width: 150px; margin-right: 10px"
+                                size="small"
+                            />
+                            <el-button type="success" size="small" @click="savePlan" :loading="saving">
+                                保存到计划库
+                            </el-button>
                         </div>
-                    </template>
-                    <div class="food-list">
-                        <el-tag v-for="food in plan.breakfast" :key="food.id" class="food-tag">
-                            {{ food.name }}
+                    </div>
+                </template>
+                
+                <div class="meal-section">
+                    <div class="meal-label">🌅 早餐</div>
+                    <div class="food-tags">
+                        <el-tag v-for="(food, idx) in currentPlan.breakfast" :key="idx" size="small">
+                            {{ food.name }} ({{ food.calories }}卡)
                         </el-tag>
                     </div>
-                </el-card>
-            </el-col>
-            
-            <el-col :span="8">
-                <el-card class="meal-card lunch">
-                    <template #header>
-                        <div class="card-header">
-                            <span>🌞 午餐</span>
-                            <span class="calories">{{ getMealCalories(plan.lunch) }} 卡</span>
-                        </div>
-                    </template>
-                    <div class="food-list">
-                        <el-tag v-for="food in plan.lunch" :key="food.id" class="food-tag">
-                            {{ food.name }}
+                </div>
+                
+                <div class="meal-section">
+                    <div class="meal-label">🌞 午餐</div>
+                    <div class="food-tags">
+                        <el-tag v-for="(food, idx) in currentPlan.lunch" :key="idx" size="small" type="success">
+                            {{ food.name }} ({{ food.calories }}卡)
                         </el-tag>
                     </div>
-                </el-card>
-            </el-col>
-            
-            <el-col :span="8">
-                <el-card class="meal-card dinner">
-                    <template #header>
-                        <div class="card-header">
-                            <span>🌙 晚餐</span>
-                            <span class="calories">{{ getMealCalories(plan.dinner) }} 卡</span>
-                        </div>
-                    </template>
-                    <div class="food-list">
-                        <el-tag v-for="food in plan.dinner" :key="food.id" class="food-tag">
-                            {{ food.name }}
+                </div>
+                
+                <div class="meal-section">
+                    <div class="meal-label">🌙 晚餐</div>
+                    <div class="food-tags">
+                        <el-tag v-for="(food, idx) in currentPlan.dinner" :key="idx" size="small" type="warning">
+                            {{ food.name }} ({{ food.calories }}卡)
                         </el-tag>
                     </div>
-                </el-card>
-            </el-col>
-        </el-row>
-        
-        <div v-if="plan" class="total-calories">
-            今日总热量：<strong>{{ plan.total_calories || getTotalCalories() }}</strong> 卡
+                </div>
+                
+                <div class="plan-footer">
+                    <span class="total-calories">🔥 总热量：{{ currentPlan.total_calories }} 卡</span>
+                </div>
+            </el-card>
         </div>
+        
+        <el-empty v-else description="点击「生成今日计划」获取 AI 推荐" />
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 
-const loading = ref(false)
-const selectedDate = ref(new Date())
-const plan = ref(null)
+const userData = JSON.parse(localStorage.getItem('user') || '{}')
+const generating = ref(false)
+const saving = ref(false)
+const currentPlan = ref(null)
+const planName = ref('')
 
-const getMealCalories = (meal) => {
-    return meal.reduce((sum, food) => sum + (food.calories || 0), 0)
-}
-
-const getTotalCalories = () => {
-    if (!plan.value) return 0
-    return getMealCalories(plan.value.breakfast) + 
-           getMealCalories(plan.value.lunch) + 
-           getMealCalories(plan.value.dinner)
-}
-
-const loadPlan = async () => {
-    const userData = JSON.parse(localStorage.getItem('user') || '{}')
-    const dateStr = selectedDate.value.toISOString().split('T')[0]
-    const res = await api.get(`/plan/${userData.id}?date=${dateStr}`)
+const generatePlan = async () => {
+    generating.value = true
+    const res = await api.post('/plan/generate', { user_id: userData.id })
+    generating.value = false
+    
     if (res.code === 200) {
-        plan.value = res.data
+        currentPlan.value = res.data
+        planName.value = `AI计划${new Date().toLocaleDateString()}`
+        ElMessage.success('计划生成成功')
     } else {
         ElMessage.error(res.message)
     }
 }
 
-const regeneratePlan = async () => {
-    loading.value = true
-    const userData = JSON.parse(localStorage.getItem('user') || '{}')
-    const res = await api.post(`/plan/${userData.id}/regenerate`)
-    loading.value = false
+const savePlan = async () => {
+    if (!planName.value) {
+        ElMessage.warning('请输入计划名称')
+        return
+    }
+    
+    saving.value = true
+    const res = await api.post('/plan/save', {
+        user_id: userData.id,
+        plan_name: planName.value,
+        foods: {
+            breakfast: currentPlan.value.breakfast,
+            lunch: currentPlan.value.lunch,
+            dinner: currentPlan.value.dinner
+        },
+        total_calories: currentPlan.value.total_calories
+    })
+    saving.value = false
+    
     if (res.code === 200) {
-        plan.value = res.data
-        ElMessage.success('已重新生成计划')
+        ElMessage.success('已保存到计划库')
     } else {
         ElMessage.error(res.message)
     }
 }
-
-onMounted(() => {
-    loadPlan()
-})
 </script>
 
 <style scoped>
 .plan-container {
-    max-width: 1200px;
+    max-width: 800px;
     margin: 0 auto;
 }
 
-.date-picker {
-    display: flex;
-    gap: 10px;
+.desc {
+    color: #666;
     margin-bottom: 20px;
 }
 
-.meal-card {
-    height: 100%;
+.actions {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.plan-card {
+    border-radius: 12px;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.meal-section {
+    margin-bottom: 20px;
+}
+
+.meal-label {
     font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 16px;
 }
 
-.calories {
-    color: #e67e22;
-}
-
-.food-list {
+.food-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
 }
 
-.food-tag {
-    font-size: 14px;
+.plan-footer {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    text-align: center;
 }
 
 .total-calories {
-    text-align: center;
-    font-size: 18px;
-    margin-top: 20px;
-    padding: 15px;
-    background: #f0f9f4;
-    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #e67e22;
 }
 </style>

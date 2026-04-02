@@ -16,7 +16,7 @@ class User(db.Model):
     
     # 关联
     preferences = db.relationship('Preference', backref='user', lazy=True, cascade='all, delete-orphan')
-    plans = db.relationship('Plan', backref='user', lazy=True)
+    # plans = db.relationship('Plan', backref='user', lazy=True)
     checkins = db.relationship('Checkin', backref='user', lazy=True)
     
     def to_dict(self):

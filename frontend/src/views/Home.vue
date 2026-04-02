@@ -1,7 +1,7 @@
 <template>
     <el-container class="home-container">
         <!-- 左侧导航栏 -->
-        <el-aside width="300px" class="sidebar">  <!-- 从260px改成300px -->
+        <el-aside width="300px" class="sidebar">
             <div class="logo">
                 <h2>🍽️ 饮食助手</h2>
             </div>
@@ -18,6 +18,10 @@
                 <el-menu-item index="plan">
                     <el-icon><Calendar /></el-icon>
                     <span>饮食计划</span>
+                </el-menu-item>
+                <el-menu-item index="saved">
+                    <el-icon><Star /></el-icon>
+                    <span>我的计划库</span>
                 </el-menu-item>
                 <el-menu-item index="recommend">
                     <el-icon><Star /></el-icon>
@@ -51,7 +55,9 @@
         
         <!-- 右侧内容区 -->
         <el-main class="main-content">
-            <component :is="currentComponent" />
+            <keep-alive include="Chat">
+                <component :is="currentComponent" />
+            </keep-alive>
         </el-main>
     </el-container>
 </template>
@@ -62,6 +68,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import Profile from '../components/Profile.vue'
 import Plan from '../components/Plan.vue'
+import SavedPlans from '../components/SavedPlans.vue'
 import Recommend from '../components/Recommend.vue'
 import Chat from '../components/Chat.vue'
 import Checkin from '../components/Checkin.vue'
@@ -74,6 +81,7 @@ const activeMenu = ref('profile')
 const componentMap = {
     profile: Profile,
     plan: Plan,
+    saved: SavedPlans,
     recommend: Recommend,
     chat: Chat,
     checkin: Checkin,
@@ -99,7 +107,7 @@ const handleLogout = () => {
 <style scoped>
 .home-container {
     height: 100vh;
-    min-width: 1200px;  /* 增加最小宽度 */
+    min-width: 1200px;
 }
 
 .sidebar {
@@ -129,7 +137,7 @@ const handleLogout = () => {
 
 .sidebar-menu .el-menu-item {
     color: #e2e8f0;
-    height: 56px;  /* 增加菜单项高度 */
+    height: 56px;
     font-size: 16px;
 }
 
@@ -153,7 +161,7 @@ const handleLogout = () => {
 
 .main-content {
     background: #f5f7fa;
-    padding: 30px;  /* 增加内边距 */
+    padding: 30px;
     overflow-y: auto;
 }
 </style>

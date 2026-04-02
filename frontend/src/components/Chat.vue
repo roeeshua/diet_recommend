@@ -1,6 +1,11 @@
 <template>
     <div class="chat-container">
-        <h2>AI 饮食助手</h2>
+        <div class="chat-header">
+            <h2>AI 饮食助手</h2>
+            <el-button type="danger" size="small" @click="clearHistory">
+                清空会话历史
+            </el-button>
+        </div>
         <p class="desc">我可以根据你的个人信息、饮食偏好和历史饮食记录，为你提供个性化的饮食建议</p>
         
         <!-- 上下文配置面板 -->
@@ -162,6 +167,14 @@ const sendQuickQuestion = (question) => {
     inputMessage.value = question
     sendMessage()
 }
+
+// 清空会话历史
+const clearHistory = () => {
+    messages.value = [
+        { role: 'assistant', content: '你好！我是你的 AI 饮食助手。会话历史已清空，有什么我可以帮你的吗？' }
+    ]
+    ElMessage.success('会话历史已清空')
+}
 </script>
 
 <style scoped>
@@ -270,5 +283,12 @@ const sendQuickQuestion = (question) => {
 
 .quick-tag {
     cursor: pointer;
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
 }
 </style>
