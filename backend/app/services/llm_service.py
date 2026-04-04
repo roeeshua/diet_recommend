@@ -38,7 +38,8 @@ class LLMService:
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.7,
+                "temperature": 1.3,
+                "top_p": 1,
                 "num_predict": 512
             }
         }
@@ -67,12 +68,23 @@ class LLMService:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
         
+        import random
+        # 随机温度：0.7 到 1.3 之间波动
+        temperature = random.uniform(1, 1.3)
+    
+        # 随机 top_p：0.8 到 1.0 之间波动（越大越多样）
+        top_p = random.uniform(0.8, 1.0)
+
+        print(f"🎲 参数: temperature={temperature:.2f}, top_p={top_p:.2f}")
         payload = {
             "model": cls.DEEPSEEK_MODEL,
             "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 512
+            "temperature": temperature,
+            'top_p': top_p,
+            "max_tokens": 1000
         }
+        
+        payload['messages'] = [m for m in payload['messages'] if m]
         
         response = requests.post(
             "https://api.deepseek.com/v1/chat/completions",

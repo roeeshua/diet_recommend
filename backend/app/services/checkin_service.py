@@ -2,6 +2,7 @@ from ..models.user_meal import UserMeal
 from ..models.food import Food
 from .. import db
 from datetime import datetime
+from .profile_service import ProfileService
 
 class CheckinService:
     
@@ -10,6 +11,7 @@ class CheckinService:
         """添加一餐记录"""
         # 如果是自定义食物
         if food_data.get('is_custom'):
+            features = food_data.get('features', [])
             meal = UserMeal(
                 user_id=user_id,
                 meal_date=meal_date,
@@ -19,6 +21,7 @@ class CheckinService:
                 calories=food_data.get('calories'),
                 season=food_data.get('season'),
                 tags=food_data.get('tags'),
+                features=features,
                 protein=food_data.get('protein', 5),
                 fiber=food_data.get('fiber', 5),
                 vitamins=food_data.get('vitamins', 5),
@@ -41,6 +44,7 @@ class CheckinService:
                 calories=food.calories,
                 season=food.season,
                 tags=food.tags,
+                features=food.features or [],
                 protein=food.protein or 5,
                 fiber=food.fiber or 5,
                 vitamins=food.vitamins or 5,
@@ -51,6 +55,8 @@ class CheckinService:
         
         db.session.add(meal)
         db.session.commit()
+        #触发画像更新
+        ProfileService.update_profile(user_id)
         return meal, None
     
     @staticmethod

@@ -23,10 +23,15 @@
                         <el-switch v-model="includeProfile" active-text="开启" inactive-text="关闭" />
                         <span class="hint">（年龄、性别、身高、体重）</span>
                     </el-form-item>
-                    
+
                     <el-form-item label="读取饮食偏好">
                         <el-switch v-model="includePreference" active-text="开启" inactive-text="关闭" />
                         <span class="hint">（口味偏好、忌口等）</span>
+                    </el-form-item>
+
+                    <el-form-item label="读取饮食画像">
+                        <el-switch v-model="includeUserProfile" active-text="开启" inactive-text="关闭" />
+                        <span class="hint">（基于30天打卡的饮食特征）</span>
                     </el-form-item>
                     
                     <el-form-item label="读取历史饮食记录">
@@ -100,6 +105,7 @@ const includeProfile = ref(true)
 const includePreference = ref(true)  // 新增：读取饮食偏好
 const includeHistory = ref(false)
 const dateRange = ref(null)
+const includeUserProfile = ref(true)  // 是否包含饮食画像
 
 const userData = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -138,7 +144,8 @@ const sendMessage = async () => {
             user_id: userData.id,
             message: userMsg,
             include_profile: includeProfile.value,
-            include_preference: includePreference.value,  // 新增
+            include_preference: includePreference.value,  
+            include_user_profile: includeUserProfile.value,
             include_history: includeHistory.value
         }
         

@@ -13,6 +13,7 @@ class UserMeal(db.Model):
     calories = db.Column(db.Integer)
     season = db.Column(db.String(20))
     tags = db.Column(db.String(200))
+    features = db.Column(db.JSON, default=list)
     protein = db.Column(db.Integer, default=5)
     fiber = db.Column(db.Integer, default=5)
     vitamins = db.Column(db.Integer, default=5)
@@ -32,6 +33,7 @@ class UserMeal(db.Model):
             'calories': self.calories,
             'season': self.season,
             'tags': self.tags.split(',') if self.tags else [],
+            'features': self.features or [],
             'protein': self.protein,
             'fiber': self.fiber,
             'vitamins': self.vitamins,

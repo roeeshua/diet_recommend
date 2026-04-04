@@ -8,6 +8,7 @@ from ..models.user_plan import UserPlan
 from ..models.user_meal import UserMeal
 from .. import db
 from .llm_service import LLMService
+from .profile_service import ProfileService
 
 class PlanService:
     """饮食计划服务"""
@@ -22,6 +23,9 @@ class PlanService:
         from ..models.preference import Preference
         preferences = Preference.query.filter_by(user_id=user_id).all()
         pref_text = ', '.join([p.value for p in preferences]) if preferences else '无特殊偏好'
+
+        # 获取动态画像（辅助参考）
+        profile_desc = ProfileService.get_profile_description(user_id)
         
         all_foods = Food.query.all()
         food_list = [f"{f.name}({f.category},{f.calories}卡)" for f in all_foods]
@@ -35,13 +39,31 @@ class PlanService:
 - 身高：{user.height if user.height else '未知'}cm
 - 体重：{user.weight if user.weight else '未知'}kg
 
-饮食偏好：{pref_text}
+【用户手动设置的偏好 - 请优先满足】
+{pref_text}
+
+【用户近期饮食画像 - 仅供参考】
+{profile_desc}
 
 可选食材（只能从以下选择）：
 {food_knowledge}
 
+## 要求
+1. 请尽量多样化，不要总是推荐相同的食材组合
+2. 可以考虑不同的菜系和烹饪方式
+3. 早餐可以尝试不同的主食选择
+4. 午餐和晚餐的蛋白质来源可以轮换（鸡胸肉、鱼、豆腐、鸡蛋等）
+
 请按以下JSON格式返回计划，只返回JSON：
 {{"breakfast": ["食材名称1", "食材名称2"], "lunch": ["食材名称1", "食材名称2", "食材名称3"], "dinner": ["食材名称1", "食材名称2"], "total_calories": 数值}}"""
+
+        # ========== 打印 Prompt ==========
+        # print("\n" + "=" * 60)
+        # print("📋 【饮食计划】发送给 AI 的 Prompt:")
+        # print("=" * 60)
+        # print(prompt)
+        # print("=" * 60 + "\n")
+        # ========== 打印结束 ==========
 
         response = LLMService.chat(prompt)
         
@@ -132,10 +154,14 @@ class PlanService:
                     food_name=food.get('name')
                 ).first()
                 if not existing:
-                    # 在创建 UserMeal 之前，处理 tags 字段
+                    # 处理 tags 字段
                     raw_tags = food.get('tags')
-                    # 如果 raw_tags 是一个列表，就把它用逗号连接成字符串；否则保持原样
                     processed_tags = ','.join(raw_tags) if isinstance(raw_tags, list) else raw_tags
+                
+                    # 处理 features 字段
+                    raw_features = food.get('features', [])
+                    processed_features = raw_features if isinstance(raw_features, list) else []
+
                     meal = UserMeal(
                         user_id=user_id,
                         meal_date=target_date,
@@ -145,6 +171,7 @@ class PlanService:
                         calories=food.get('calories'),
                         season=food.get('season'),
                         tags=processed_tags, # 现在 processed_tags 是一个字符串，比如 "膳食纤维,早餐"
+                        features=processed_features,
                         protein=food.get('protein', 5),
                         fiber=food.get('fiber', 5),
                         vitamins=food.get('vitamins', 5),
@@ -156,4 +183,6 @@ class PlanService:
                     count += 1
         
         db.session.commit()
+        # 触发画像更新
+        ProfileService.update_profile(user_id)
         return True, f"已添加 {count} 种食物到 {target_date} 的打卡记录"

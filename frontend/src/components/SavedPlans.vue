@@ -203,7 +203,7 @@
         </el-dialog>
         
         <!-- 自定义食物弹窗 -->
-        <el-dialog v-model="showCustomFoodDialog" title="自定义食物" width="600px">
+        <el-dialog v-model="showCustomFoodDialog" title="自定义食物" width="700px">
             <el-form :model="customFood" label-width="100px">
                 <el-form-item label="食物名称" required>
                     <el-input v-model="customFood.name" />
@@ -268,6 +268,27 @@
                     </el-col>
                 </el-row>
                 
+                <el-divider>饮食特征（可多选）</el-divider>
+                <el-form-item label="特征标签">
+                    <el-select
+                        v-model="customFood.features"
+                        multiple
+                        filterable
+                        allow-create
+                        default-first-option
+                        placeholder="选择或输入特征"
+                        style="width: 100%"
+                    >
+                        <el-option
+                            v-for="feature in featureOptions"
+                            :key="feature"
+                            :label="feature"
+                            :value="feature"
+                        />
+                    </el-select>
+                    <div class="feature-hint">提示：支持自定义输入新特征</div>
+                </el-form-item>
+                
                 <el-button type="success" @click="aiFillFood" :loading="aiLoading">
                     🤖 AI 自动补全（输入食物名称后点击）
                 </el-button>
@@ -319,6 +340,13 @@ const showCheckinDialog = ref(false)
 let currentCheckinPlan = null
 let currentMealType = 'breakfast'
 
+// 预设特征选项（24种）
+const featureOptions = [
+    '辣味', '麻辣', '酸味', '甜味', '咸鲜', '清淡', '浓郁', '清爽',
+    '高蛋白', '低脂', '低碳水', '高纤维', '高钙', '低卡', '高维生素', '均衡营养',
+    '海鲜', '红肉', '白肉', '素食', '抗氧化', '助消化', '补气血', '增强免疫'
+]
+
 const customPlan = ref({
     plan_name: '',
     breakfast: [],
@@ -344,6 +372,7 @@ const customFood = ref({
     calories: 0,
     season: '四季',
     tags: '',
+    features: [],
     protein: 5,
     fiber: 5,
     vitamins: 5,
@@ -407,6 +436,7 @@ const openCustomFood = (mealType) => {
         calories: 0,
         season: '四季',
         tags: '',
+        features: [],
         protein: 5,
         fiber: 5,
         vitamins: 5,
@@ -435,6 +465,7 @@ const aiFillFood = async () => {
             customFood.value.calories = data.calories || 0
             customFood.value.season = data.season || '四季'
             customFood.value.tags = data.tags || ''
+            customFood.value.features = data.features || []
             customFood.value.protein = data.protein || 5
             customFood.value.fiber = data.fiber || 5
             customFood.value.vitamins = data.vitamins || 5
@@ -459,6 +490,7 @@ const addCustomFood = () => {
         ElMessage.warning('请填写食物名称')
         return
     }
+    // 复制完整食物对象，包含 features
     customPlan.value[currentMealType].push({ ...customFood.value })
     showCustomFoodDialog.value = false
 }
@@ -667,5 +699,11 @@ onMounted(() => {
     font-weight: bold;
     color: #e67e22;
     margin-top: 20px;
+}
+
+.feature-hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: 5px;
 }
 </style>

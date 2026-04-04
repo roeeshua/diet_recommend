@@ -28,6 +28,7 @@ def fill_food():
 - 预估卡路里（整数）
 - 季节（春季/夏季/秋季/冬季/四季）
 - 标签（多个用逗号分隔）
+- 饮食特征（从以下列表中选择1-3个最匹配的：辣味、麻辣、酸味、甜味、咸鲜、清淡、浓郁、清爽、高蛋白、低脂、低碳水、高纤维、高钙、低卡、高维生素、均衡营养、海鲜、红肉、白肉、素食、抗氧化、助消化、补气血、增强免疫）
 - 蛋白质（1-10分）
 - 膳食纤维（1-10分）
 - 微量元素（1-10分）
@@ -36,7 +37,7 @@ def fill_food():
 - 钠（1-10分）
 
 只返回JSON，格式如下：
-{{"category":"蔬菜","calories":35,"season":"四季","tags":"低卡,维生素","protein":6,"fiber":8,"vitamins":7,"sugar":2,"saturated_fat":1,"sodium":2}}"""
+{{"category":"蔬菜","calories":35,"season":"四季","tags":"低卡,维生素","features":["高纤维","高维生素"],"protein":6,"fiber":8,"vitamins":7,"sugar":2,"saturated_fat":1,"sodium":2}}"""
 
     headers = {
         'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
@@ -60,10 +61,21 @@ def fill_food():
         result = response.json()
         content = result['choices'][0]['message']['content']
         
+        # 调试：打印 AI 原始返回
+        print(f"🤖 AI 原始返回: {content}")
+        
         # 提取 JSON
         json_match = re.search(r'\{[\s\S]*\}', content)
         if json_match:
             food_data = json.loads(json_match.group())
+            # 调试：打印解析后的数据
+            print(f"📦 解析后的数据: {food_data}")
+            
+            # 获取 features，确保是列表
+            features = food_data.get('features', [])
+            if isinstance(features, str):
+                features = [features]
+            
             return jsonify({
                 'code': 200,
                 'data': {
@@ -71,6 +83,7 @@ def fill_food():
                     'calories': food_data.get('calories', 0),
                     'season': food_data.get('season', ''),
                     'tags': food_data.get('tags', ''),
+                    'features': features,  # 新增：返回饮食特征
                     'protein': food_data.get('protein', 5),
                     'fiber': food_data.get('fiber', 5),
                     'vitamins': food_data.get('vitamins', 5),
@@ -80,6 +93,7 @@ def fill_food():
                 }
             }), 200
         else:
+            print(f"❌ 未找到 JSON: {content}")
             return jsonify({'code': 500, 'message': 'AI 返回格式异常'}), 500
             
     except requests.exceptions.RequestException as e:
@@ -90,7 +104,7 @@ def fill_food():
         return jsonify({'code': 500, 'message': f'处理失败: {str(e)}'}), 500
     
     # ==================== 2. 获取用户上下文 ====================
-def get_user_context(user_id, include_profile=True, include_preference=True, include_history=False, start_date=None, end_date=None):
+def get_user_context(user_id, include_profile=True, include_user_profile=True, include_preference=True, include_history=False, start_date=None, end_date=None):
     """构建用户上下文"""
     context_parts = []
     
@@ -114,7 +128,13 @@ def get_user_context(user_id, include_profile=True, include_preference=True, inc
 - 身高：{user.height if user.height else '未知'}cm
 - 体重：{user.weight if user.weight else '未知'}kg""")
     
-    # 2. 用户饮食偏好
+    # 2. 用户饮食画像（基于30天打卡的动态画像）
+    if include_user_profile:
+        from ..services.profile_service import ProfileService
+        profile_desc = ProfileService.get_profile_description(user_id)
+        context_parts.append(f"【用户饮食画像（基于近30天打卡）】\n- {profile_desc}")
+
+    # 3. 用户饮食偏好
     if include_preference:
         from ..models.preference import Preference
         preferences = Preference.query.filter_by(user_id=user_id).all()
@@ -124,7 +144,7 @@ def get_user_context(user_id, include_profile=True, include_preference=True, inc
         else:
             context_parts.append("【饮食偏好】\n- 暂无设置偏好")
     
-    # 3. 历史饮食记录
+    # 4. 历史饮食记录
     if include_history and start_date and end_date:
         meals = UserMeal.query.filter(
             UserMeal.user_id == user_id,
@@ -191,8 +211,9 @@ def chat():
     data = request.get_json()
     user_id = data.get('user_id')
     message = data.get('message', '')
-    include_profile = data.get('include_profile', True)
-    include_preference = data.get('include_preference', True)  
+    include_profile = data.get('include_profile', True)  #用户基本信息
+    include_user_profile = data.get('include_user_profile', True)  #用户饮食画像
+    include_preference = data.get('include_preference', True) # 用户手动偏好
     include_history = data.get('include_history', False)
     start_date = data.get('start_date')
     end_date = data.get('end_date')
@@ -201,19 +222,19 @@ def chat():
         return jsonify({'code': 400, 'message': '参数不完整'}), 400
     
     # 获取用户上下文
-    user_context = get_user_context(user_id, include_profile,include_preference, include_history, start_date, end_date)
+    user_context = get_user_context(user_id, include_profile,include_user_profile,include_preference, include_history, start_date, end_date)
     # ========== 在这里添加打印代码 ==========
-    print("=" * 50)
-    print(f"用户ID: {user_id}")
-    print(f"包含基本信息: {include_profile}")
-    print(f"包含历史记录: {include_history}")
-    print(f"日期范围: {start_date} ~ {end_date}")
-    print("-" * 50)
-    print("发送给 AI 的用户上下文:")
-    print(user_context)
-    print("-" * 50)
-    print(f"用户问题: {message}")
-    print("=" * 50)
+    # print("=" * 50)
+    # print(f"用户ID: {user_id}")
+    # print(f"包含基本信息: {include_profile}")
+    # print(f"包含历史记录: {include_history}")
+    # print(f"日期范围: {start_date} ~ {end_date}")
+    # print("-" * 50)
+    # print("发送给 AI 的用户上下文:")
+    # print(user_context)
+    # print("-" * 50)
+    # print(f"用户问题: {message}")
+    # print("=" * 50)
     # ========== 打印代码结束 ==========
     system_prompt = """你是一个专业的饮食健康助手。请根据提供的用户信息和历史饮食记录，回答用户的问题。
 回答要专业、友好、有针对性。如果用户有异常指标，要给出具体的改善建议。

@@ -12,6 +12,15 @@
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
             />
+            <el-button 
+                type="danger" 
+                plain 
+                @click="deleteDayMeals" 
+                :loading="deletingDay"
+                :disabled="!hasMealsOnSelectedDate"
+            >
+                一键删除当天记录
+            </el-button>
         </div>
         
         <!-- 三餐打卡区域 -->
@@ -83,7 +92,7 @@
         </div>
         
         <!-- 添加食物弹窗 -->
-        <el-dialog v-model="showAddDialog" :title="`添加${mealTypeMap[currentMealType]}`" width="700px">
+        <el-dialog v-model="showAddDialog" :title="`添加${mealTypeMap[currentMealType]}`" width="800px">
             <el-form :model="foodForm" label-width="100px">
                 <el-form-item label="选择食物">
                     <el-select
@@ -192,6 +201,27 @@
                         </el-col>
                     </el-row>
                     
+                    <el-divider>饮食特征（可多选）</el-divider>
+                    <el-form-item label="特征标签">
+                        <el-select
+                            v-model="foodForm.features"
+                            multiple
+                            filterable
+                            allow-create
+                            default-first-option
+                            placeholder="选择或输入特征"
+                            style="width: 100%"
+                        >
+                            <el-option
+                                v-for="feature in featureOptions"
+                                :key="feature"
+                                :label="feature"
+                                :value="feature"
+                            />
+                        </el-select>
+                        <div class="feature-hint">提示：支持自定义输入新特征</div>
+                    </el-form-item>
+                    
                     <el-button type="success" size="small" @click="autoFillByAI" :loading="aiLoading">
                         🤖 AI 自动补全（输入食物名称后点击）
                     </el-button>
@@ -207,7 +237,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Close } from '@element-plus/icons-vue'
 import api from '../api'
@@ -215,6 +245,7 @@ import api from '../api'
 const userData = JSON.parse(localStorage.getItem('user') || '{}')
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const meals = reactive({ breakfast: [], lunch: [], dinner: [] })
+const deletingDay = ref(false)
 
 // 弹窗相关
 const showAddDialog = ref(false)
@@ -226,6 +257,20 @@ const searchResults = ref([])
 const searchLoading = ref(false)
 const aiLoading = ref(false)
 
+// 判断选中日期是否有记录
+const hasMealsOnSelectedDate = computed(() => {
+    return meals.breakfast.length > 0 || 
+           meals.lunch.length > 0 || 
+           meals.dinner.length > 0
+})
+
+// 预设特征选项（24种）
+const featureOptions = [
+    '辣味', '麻辣', '酸味', '甜味', '咸鲜', '清淡', '浓郁', '清爽',
+    '高蛋白', '低脂', '低碳水', '高纤维', '高钙', '低卡', '高维生素', '均衡营养',
+    '海鲜', '红肉', '白肉', '素食', '抗氧化', '助消化', '补气血', '增强免疫'
+]
+
 // 自定义食物表单
 const foodForm = reactive({
     food_name: '',
@@ -233,6 +278,7 @@ const foodForm = reactive({
     calories: 0,
     season: '',
     tags: '',
+    features: [],
     protein: 5,
     fiber: 5,
     vitamins: 5,
@@ -240,6 +286,31 @@ const foodForm = reactive({
     saturated_fat: 5,
     sodium: 5
 })
+
+const deleteDayMeals = async () => {
+    if (!hasMealsOnSelectedDate.value) {
+        ElMessage.warning('该日期无打卡记录')
+        return
+    }
+    
+    ElMessageBox.confirm(
+        `确定删除 ${selectedDate.value} 的所有打卡记录吗？此操作不可恢复。`, 
+        '警告', 
+        { type: 'warning' }
+    ).then(async () => {
+        deletingDay.value = true
+        const userData = JSON.parse(localStorage.getItem('user') || '{}')
+        const res = await api.delete(`/checkin/${userData.id}/${selectedDate.value}`)
+        deletingDay.value = false
+        
+        if (res.code === 200) {
+            ElMessage.success(res.message)
+            loadMeals()  // 刷新打卡记录
+        } else {
+            ElMessage.error(res.message)
+        }
+    }).catch(() => {})
+}
 
 // 加载某天所有餐食
 const loadMeals = async () => {
@@ -273,6 +344,7 @@ const onFoodSelect = (foodId) => {
         foodForm.calories = food.calories
         foodForm.season = food.season
         foodForm.tags = food.tags ? food.tags.join(',') : ''
+        foodForm.features = food.features || []
         foodForm.protein = food.protein || 5
         foodForm.fiber = food.fiber || 5
         foodForm.vitamins = food.vitamins || 5
@@ -302,6 +374,7 @@ const autoFillByAI = async () => {
             foodForm.calories = data.calories || 0
             foodForm.season = data.season || ''
             foodForm.tags = data.tags || ''
+            foodForm.features = data.features || []
             foodForm.protein = data.protein || 5
             foodForm.fiber = data.fiber || 5
             foodForm.vitamins = data.vitamins || 5
@@ -327,6 +400,7 @@ const openAddDialog = (type) => {
     selectedFoodId.value = null
     Object.assign(foodForm, {
         food_name: '', category: '', calories: 0, season: '', tags: '',
+        features: [],
         protein: 5, fiber: 5, vitamins: 5, sugar: 5, saturated_fat: 5, sodium: 5
     })
     showAddDialog.value = true
@@ -345,16 +419,16 @@ const submitMeal = async () => {
         calories: foodForm.calories,
         season: foodForm.season,
         tags: foodForm.tags,
+        features: foodForm.features,
         protein: foodForm.protein,
         fiber: foodForm.fiber,
         vitamins: foodForm.vitamins,
         sugar: foodForm.sugar,
         saturated_fat: foodForm.saturated_fat,
         sodium: foodForm.sodium,
-        is_custom: true  // 自定义食物
+        is_custom: true
     }
     
-    // 如果是从数据库选择的，标记为不是自定义
     if (selectedFoodId.value) {
         foodData.is_custom = false
         foodData.food_id = selectedFoodId.value
@@ -395,6 +469,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
+
+.date-section {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
 .checkin-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -448,5 +530,11 @@ onMounted(() => {
     padding: 15px;
     background: #f5f7fa;
     border-radius: 8px;
+}
+
+.feature-hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: 5px;
 }
 </style>

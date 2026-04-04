@@ -21,6 +21,7 @@ def create_app(config_class=Config):
     from .routes.plan import plan_bp
     from .routes.checkin import checkin_bp
     from .routes.ai import ai_bp
+    from .routes.profile import profile_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api')
@@ -30,6 +31,7 @@ def create_app(config_class=Config):
     app.register_blueprint(plan_bp, url_prefix='/api')
     app.register_blueprint(checkin_bp, url_prefix='/api')
     app.register_blueprint(ai_bp, url_prefix='/api')
+    app.register_blueprint(profile_bp, url_prefix='/api')
     
     @app.route('/health')
     def health():

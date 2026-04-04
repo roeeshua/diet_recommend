@@ -16,5 +16,7 @@ venv/
 *.log
 
 # 半成品 C 模块（先不提交）
-backend/Makefile
 backend/c_modules/
+backend/backups/
+backup/
+count_lines.py

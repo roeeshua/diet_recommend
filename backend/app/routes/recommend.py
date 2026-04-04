@@ -7,5 +7,5 @@ recommend_bp = Blueprint('recommend', __name__)
 @recommend_bp.route('/recommend/<int:user_id>', methods=['GET'])
 def get_recommendations(user_id):
     """获取推荐食材"""
-    foods = RecommendService.get_recommendations(user_id, limit=5)
+    foods = RecommendService.get_recommendations(user_id, limit=8)
     return jsonify({'code': 200, 'data': foods}), 200

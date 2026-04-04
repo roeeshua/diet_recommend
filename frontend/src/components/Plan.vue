@@ -7,6 +7,9 @@
             <el-button type="primary" @click="generatePlan" :loading="generating">
                 🤖 生成今日计划
             </el-button>
+            <el-button type="success" @click="regeneratePlan" :loading="generating" plain>
+                🔄 换一批
+            </el-button>
         </div>
         
         <div v-if="currentPlan" class="plan-result">
@@ -88,6 +91,11 @@ const generatePlan = async () => {
     } else {
         ElMessage.error(res.message)
     }
+}
+
+// 添加 regeneratePlan 方法（复用 generatePlan 逻辑）
+const regeneratePlan = () => {
+    generatePlan()  // 直接复用，重新调用接口
 }
 
 const savePlan = async () => {
