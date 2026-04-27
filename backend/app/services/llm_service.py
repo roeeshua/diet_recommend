@@ -31,6 +31,7 @@ class LLMService:
     
     @classmethod
     def _call_ollama(cls, prompt: str, system_prompt: str = None) -> str:
+        print(f"🔗 正在请求 Ollama URL: {cls.OLLAMA_URL}")  # 加这行
         """调用本地 Ollama"""
         url = f"{cls.OLLAMA_URL}/api/generate"
         payload = {

@@ -5,6 +5,13 @@
             <el-button type="danger" size="small" @click="clearHistory">
                 清空会话历史
             </el-button>
+            <div class="model-switch">
+                <span>🤖 模型选择：</span>
+                <el-radio-group v-model="currentModel" @change="switchModel" size="small">
+                    <el-radio-button value="ollama">本地 Ollama</el-radio-button>
+                    <el-radio-button value="deepseek">外部 API</el-radio-button>
+                </el-radio-group>
+            </div>
         </div>
         <p class="desc">我可以根据你的个人信息、饮食偏好和历史饮食记录，为你提供个性化的饮食建议</p>
         
@@ -93,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 
@@ -107,7 +114,33 @@ const includeHistory = ref(false)
 const dateRange = ref(null)
 const includeUserProfile = ref(true)  // 是否包含饮食画像
 
+const currentModel = ref('ollama')
+
 const userData = JSON.parse(localStorage.getItem('user') || '{}')
+
+// 获取当前使用的模型
+const getCurrentModel = async () => {
+    const res = await api.get('/ai/get_model')
+    if (res.code === 200) {
+        currentModel.value = res.data.engine
+    }
+}
+
+// 切换模型
+const switchModel = async () => {
+    const res = await api.post('/ai/switch_model', { engine: currentModel.value })
+    if (res.code === 200) {
+        ElMessage.success(res.message)
+    } else {
+        ElMessage.error(res.message)
+        // 切换失败，恢复原值
+        currentModel.value = currentModel.value === 'ollama' ? 'deepseek' : 'ollama'
+    }
+}
+
+onMounted(() => {
+    getCurrentModel()
+})
 
 const messages = ref([
     { role: 'assistant', content: '你好！我是你的 AI 饮食助手。我可以根据你的个人信息、饮食偏好和历史饮食记录，为你提供个性化的饮食建议。' }
@@ -130,6 +163,7 @@ const scrollToBottom = async () => {
 }
 
 const sendMessage = async () => {
+    console.log(`当前使用模型: ${currentModel.value}`)
     if (!inputMessage.value.trim()) return
     
     const userMsg = inputMessage.value
@@ -298,4 +332,18 @@ const clearHistory = () => {
     align-items: center;
     margin-bottom: 15px;
 }
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.model-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 </style>

@@ -211,9 +211,9 @@ def chat():
     data = request.get_json()
     user_id = data.get('user_id')
     message = data.get('message', '')
-    include_profile = data.get('include_profile', True)  #用户基本信息
-    include_user_profile = data.get('include_user_profile', True)  #用户饮食画像
-    include_preference = data.get('include_preference', True) # 用户手动偏好
+    include_profile = data.get('include_profile', True)
+    include_user_profile = data.get('include_user_profile', True)
+    include_preference = data.get('include_preference', True)
     include_history = data.get('include_history', False)
     start_date = data.get('start_date')
     end_date = data.get('end_date')
@@ -221,21 +221,8 @@ def chat():
     if not user_id or not message:
         return jsonify({'code': 400, 'message': '参数不完整'}), 400
     
-    # 获取用户上下文
-    user_context = get_user_context(user_id, include_profile,include_user_profile,include_preference, include_history, start_date, end_date)
-    # ========== 在这里添加打印代码 ==========
-    # print("=" * 50)
-    # print(f"用户ID: {user_id}")
-    # print(f"包含基本信息: {include_profile}")
-    # print(f"包含历史记录: {include_history}")
-    # print(f"日期范围: {start_date} ~ {end_date}")
-    # print("-" * 50)
-    # print("发送给 AI 的用户上下文:")
-    # print(user_context)
-    # print("-" * 50)
-    # print(f"用户问题: {message}")
-    # print("=" * 50)
-    # ========== 打印代码结束 ==========
+    user_context = get_user_context(user_id, include_profile, include_user_profile, include_preference, include_history, start_date, end_date)
+    
     system_prompt = """你是一个专业的饮食健康助手。请根据提供的用户信息和历史饮食记录，回答用户的问题。
 回答要专业、友好、有针对性。如果用户有异常指标，要给出具体的改善建议。
 使用中文回答，保持简洁清晰。"""
@@ -246,27 +233,13 @@ def chat():
 
 请根据以上信息回答用户的问题。"""
     
-    headers = {
-        'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
-        'Content-Type': 'application/json'
-    }
-    
-    payload = {
-        'model': 'deepseek-chat',
-        'messages': [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_message}
-        ],
-        'temperature': 0.7,
-        'max_tokens': 1000
-    }
-    
     try:
-        response = requests.post(DEEPSEEK_API_URL, headers=headers, json=payload, timeout=60)
-        response.raise_for_status()
-        result = response.json()
-        reply = result['choices'][0]['message']['content']
+        from ..services.llm_service import LLMService
+        reply = LLMService.chat(user_message, system_prompt=system_prompt)
         
+        if reply is None:
+            return jsonify({'code': 500, 'message': 'AI 服务暂时不可用'}), 500
+            
         return jsonify({
             'code': 200,
             'data': {'response': reply}
@@ -275,3 +248,40 @@ def chat():
     except Exception as e:
         print(f"AI 对话失败: {e}")
         return jsonify({'code': 500, 'message': f'AI 服务暂时不可用: {str(e)}'}), 500
+    
+@ai_bp.route('/ai/switch_model', methods=['POST'])
+def switch_model():
+    """切换大模型引擎"""
+    data = request.get_json()
+    engine = data.get('engine', 'ollama')
+    
+    if engine not in ['ollama', 'deepseek']:
+        return jsonify({'code': 400, 'message': 'engine 必须是 ollama 或 deepseek'}), 400
+    
+    # 修改 .env 文件中的 LLM_ENGINE
+    env_path = os.path.join(os.path.dirname(__file__), '../../.env')
+    try:
+        with open(env_path, 'r') as f:
+            lines = f.readlines()
+        
+        with open(env_path, 'w') as f:
+            for line in lines:
+                if line.startswith('LLM_ENGINE='):
+                    f.write(f'LLM_ENGINE={engine}\n')
+                else:
+                    f.write(line)
+        
+        # 同时更新运行时配置
+        from ..services.llm_service import LLMService
+        LLMService.ENGINE = engine
+        
+        return jsonify({'code': 200, 'message': f'已切换至 {engine}', 'data': {'engine': engine}}), 200
+    except Exception as e:
+        return jsonify({'code': 500, 'message': f'切换失败: {str(e)}'}), 500
+
+
+@ai_bp.route('/ai/get_model', methods=['GET'])
+def get_current_model():
+    """获取当前使用的大模型"""
+    from ..services.llm_service import LLMService
+    return jsonify({'code': 200, 'data': {'engine': LLMService.ENGINE}}), 200

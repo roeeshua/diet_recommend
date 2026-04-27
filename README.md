@@ -55,12 +55,12 @@ FLUSH PRIVILEGES;
 ```bash
 cat /etc/resolv.conf | grep nameserver
 ```
-会输出类似 `nameserver 172.29.208.1`，记下这个 IP。
+会输出类似 `nameserver xxx.xxx.xxx.xxx`，记下这个 IP。
 
 ### 4. 配置 `.env` 使用该 IP
 
 ```ini
-MYSQL_HOST=172.29.208.1   # 用你查到的 IP
+MYSQL_HOST=xxx.xxx.xxx.xxx   # 用你查到的 IP
 MYSQL_PORT=3306
 MYSQL_USER=root
 MYSQL_PASSWORD=你的密码
@@ -146,7 +146,7 @@ npm run dev
 
 ## 大模型配置
 
-系统支持两种大模型后端，在 `backend/.env` 中通过 `LLM_ENGINE` 切换。
+系统支持两种大模型后端，在 `backend/.env` 中通过 `LLM_ENGINE` 切换，现支持在前端ai对话界面切换
 
 ### 方式一：本地 Ollama（免费，离线可用）
 
@@ -191,7 +191,7 @@ OLLAMA_MODEL=tinyllama   # 或 qwen2:1.5b
 
 **1. 获取 API Key**
 
-访问 https://platform.deepseek.com/ 注册，新用户送 500 万 tokens。
+访问 https://platform.deepseek.com/ 注册。
 
 **2. 配置项目**
 

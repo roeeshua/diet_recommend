@@ -1,14 +1,14 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # 保留这行，万一后面 .env 生效了也能覆盖
+load_dotenv()  
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-123456')
     MYSQL_HOST = '172.29.208.1'
     MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))
     MYSQL_USER = os.getenv('MYSQL_USER', 'root')
-    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '111')    # 👈 也把密码默认值写上
+    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '111')    # 密码默认值
     MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'diet_recommend')
     
     # 打印验证
