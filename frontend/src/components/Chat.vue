@@ -109,10 +109,10 @@ const inputMessage = ref('')
 const messagesContainer = ref(null)
 const showContext = ref(false)
 const includeProfile = ref(true)
-const includePreference = ref(true)  // 新增：读取饮食偏好
+const includePreference = ref(true)  
 const includeHistory = ref(false)
 const dateRange = ref(null)
-const includeUserProfile = ref(true)  // 是否包含饮食画像
+const includeUserProfile = ref(true)  
 
 const currentModel = ref('ollama')
 

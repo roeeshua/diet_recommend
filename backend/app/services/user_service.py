@@ -10,7 +10,6 @@ class UserService:
         if not user:
             return None, "用户不存在"
         
-        # 返回用户对象，不是分散的字段
         return user, None
     
     @staticmethod
@@ -20,7 +19,6 @@ class UserService:
         if error:
             return None, error
         
-        # 只更新传入的字段
         if 'age' in data:
             user.age = data['age']
         if 'gender' in data:

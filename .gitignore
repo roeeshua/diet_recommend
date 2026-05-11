@@ -2,7 +2,7 @@
 __pycache__/
 *.pyc
 venv/
-.env                       
+.env
 
 # IDE
 .vscode/
@@ -15,8 +15,23 @@ venv/
 # 日志
 *.log
 
+# Claude
+.claude/
+
+# 向量检索缓存（自动生成）
+backend/data/
+
 # 半成品 C 模块（先不提交）
 backend/c_modules/
 backend/backups/
 backup/
 count_lines.py
+
+# 临时脚本
+run_frontend.sh
+backend/get-pip.py
+nul
+
+# 论文文档
+*.docx
+新建 文本文档.txt

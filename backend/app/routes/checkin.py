@@ -57,41 +57,35 @@ def delete_meal(meal_id):
     meal = UserMeal.query.get(meal_id)
     if not meal:
         return jsonify({'code': 404, 'message': '记录不存在'}), 404
-    
-    user_id = meal.user_id  # 直接从记录中获取
-    # 可选：验证这条记录属于该用户
+
+    user_id = meal.user_id
     if meal.user_id != user_id:
         return jsonify({'code': 403, 'message': '无权删除此记录'}), 403
-    
+
     db.session.delete(meal)
     db.session.commit()
-    
-    # 触发画像更新
+
     from ..services.profile_service import ProfileService
     ProfileService.update_profile(user_id)
-    
+
     return jsonify({'code': 200, 'message': '删除成功'}), 200
 
 @checkin_bp.route('/checkin/<int:user_id>/<string:date>', methods=['DELETE'])
 def delete_day_meals(user_id, date):
     """删除指定用户指定日期的所有餐食记录"""
-    
-    # 查询该用户该日期的所有记录
     meals = UserMeal.query.filter_by(user_id=user_id, meal_date=date).all()
-    
+
     if not meals:
         return jsonify({'code': 404, 'message': '该日期无打卡记录'}), 404
-    
-    # 删除所有记录
+
     for meal in meals:
         db.session.delete(meal)
-    
+
     db.session.commit()
-    
-    # 触发画像更新
+
     from ..services.profile_service import ProfileService
     ProfileService.update_profile(user_id)
-    
+
     return jsonify({
         'code': 200, 
         'message': f'已删除 {len(meals)} 条打卡记录',

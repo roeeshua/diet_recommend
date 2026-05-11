@@ -55,12 +55,10 @@ class ProfileService:
             profile = UserProfile(user_id=user_id)
             db.session.add(profile)
         
-        # 如果没有打卡记录，所有指标归零
         if not meals:
             for field in ProfileService.FEATURE_KEYWORDS.values():
                 setattr(profile, field, 0.0)
             db.session.commit()
-            print(f"✅ 用户 {user_id} 画像已重置（近30天无打卡记录）")
             return profile
         
         total = len(meals)
@@ -87,8 +85,6 @@ class ProfileService:
             setattr(profile, field, new_value)
         
         db.session.commit()
-        print(f"✅ 用户 {user_id} 画像已重新计算（基于近30天共 {total} 条打卡记录）")
-        
         return profile
     
     @staticmethod

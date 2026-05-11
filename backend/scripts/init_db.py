@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, db
-from app.models import User, Food, Preference, UserPlan, UserMeal,checkin,UserProfile
+from app.models import User, Food, Preference, UserPlan, UserMeal,UserProfile
 
 app = create_app()
 

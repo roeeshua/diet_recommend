@@ -11,7 +11,6 @@ class Food(db.Model):
     tags = db.Column(db.String(200))
     features = db.Column(db.JSON, default=list)
     
-    # 新增营养指标字段（十分制）
     protein = db.Column(db.Integer, default=5)      # 蛋白质
     fiber = db.Column(db.Integer, default=5)        # 膳食纤维
     vitamins = db.Column(db.Integer, default=5)     # 微量元素

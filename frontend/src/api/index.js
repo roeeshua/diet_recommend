@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
     baseURL: 'http://127.0.0.1:5000/api',
-    timeout: 30000
+    timeout: 3000000
 })
 
 // 请求拦截器：自动添加 token

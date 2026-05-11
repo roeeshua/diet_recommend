@@ -55,7 +55,6 @@ class CheckinService:
         
         db.session.add(meal)
         db.session.commit()
-        #触发画像更新
         ProfileService.update_profile(user_id)
         return meal, None
     

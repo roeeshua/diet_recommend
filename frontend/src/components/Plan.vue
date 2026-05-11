@@ -93,9 +93,9 @@ const generatePlan = async () => {
     }
 }
 
-// 添加 regeneratePlan 方法（复用 generatePlan 逻辑）
+
 const regeneratePlan = () => {
-    generatePlan()  // 直接复用，重新调用接口
+    generatePlan()  
 }
 
 const savePlan = async () => {

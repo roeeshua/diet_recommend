@@ -7,7 +7,7 @@ class UserPlan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     plan_name = db.Column(db.String(100), nullable=False)
-    foods = db.Column(db.JSON, nullable=False)  # 存储三餐食物列表
+    foods = db.Column(db.JSON, nullable=False)  
     total_calories = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
