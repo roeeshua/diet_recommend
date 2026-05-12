@@ -3,11 +3,15 @@ import os
 import json
 import re
 import requests
+import threading
 
 from ..models.user import User
 from ..models.user_meal import UserMeal
 
 ai_bp = Blueprint('ai', __name__)
+
+# 用户取消标志 {user_id: threading.Event}
+_cancel_flags = {}
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions'
@@ -99,11 +103,9 @@ def get_user_context(user_id, include_profile=True, include_user_profile=True,
 
     score_rules = """
 【营养指标评分规则】
-- 每个指标采用十分制（1-10分）
-- 一天所有餐食的评分会累加
-- 正常范围：30-70分（累计后）
-- 低于30分：表示该营养素摄入不足，需要补充
-- 高于70分：表示该营养素摄入超标，需要控制
+- 每个指标采用十分制（1-10分），一天所有餐食的评分会累加
+- 蛋白质、膳食纤维、微量元素：30-70 分为正常
+- 添加糖、饱和脂肪、钠：10-50 分为正常（越低越好）
 """
 
     if include_profile:
@@ -158,10 +160,11 @@ def get_user_context(user_id, include_profile=True, include_user_profile=True,
                 daily_stats[date_str]['foods'].append(meal)
 
             for date_str, stats in daily_stats.items():
-                def get_status(score):
-                    if score < 30:
+                def get_status(score, field):
+                    lo, hi = (30, 70) if field in ('protein', 'fiber', 'vitamins') else (10, 50)
+                    if score < lo:
                         return "⚠️ 不足（需要补充）"
-                    elif score > 70:
+                    elif score > hi:
                         return "⚠️ 超标（需要控制）"
                     else:
                         return "✅ 正常"
@@ -172,12 +175,12 @@ def get_user_context(user_id, include_profile=True, include_user_profile=True,
                 context_parts.append(f"""
 日期：{date_str}
 - 总热量：{stats['calories']}卡
-- 蛋白质评分：{stats['protein']}（{get_status(stats['protein'])}）
-- 膳食纤维评分：{stats['fiber']}（{get_status(stats['fiber'])}）
-- 微量元素评分：{stats['vitamins']}（{get_status(stats['vitamins'])}）
-- 添加糖评分：{stats['sugar']}（{get_status(stats['sugar'])}）
-- 饱和脂肪评分：{stats['saturated_fat']}（{get_status(stats['saturated_fat'])}）
-- 钠评分：{stats['sodium']}（{get_status(stats['sodium'])}）
+- 蛋白质评分：{stats['protein']}（{get_status(stats['protein'], 'protein')}）
+- 膳食纤维评分：{stats['fiber']}（{get_status(stats['fiber'], 'fiber')}）
+- 微量元素评分：{stats['vitamins']}（{get_status(stats['vitamins'], 'vitamins')}）
+- 添加糖评分：{stats['sugar']}（{get_status(stats['sugar'], 'sugar')}）
+- 饱和脂肪评分：{stats['saturated_fat']}（{get_status(stats['saturated_fat'], 'saturated_fat')}）
+- 钠评分：{stats['sodium']}（{get_status(stats['sodium'], 'sodium')}）
 - 食物清单：{foods_text}
 """)
         else:
@@ -202,6 +205,10 @@ def chat():
     if not user_id or not message:
         return jsonify({'code': 400, 'message': '参数不完整'}), 400
 
+    # 注册取消标志
+    cancel_flag = threading.Event()
+    _cancel_flags[user_id] = cancel_flag
+
     user_context = get_user_context(
         user_id, include_profile, include_user_profile,
         include_preference, include_history, start_date, end_date
@@ -217,20 +224,55 @@ def chat():
 
 请根据以上信息回答用户的问题。"""
 
-    try:
-        from ..services.llm_service import LLMService
-        reply = LLMService.chat(user_message, system_prompt=system_prompt)
+    from ..services.llm_service import LLMService
 
-        if reply is None:
-            return jsonify({'code': 500, 'message': 'AI 服务暂时不可用'}), 500
+    # 在后台线程中调用 LLM，主线程等待时检测取消
+    result = [None]
+    error_msg = [None]
 
-        return jsonify({
-            'code': 200,
-            'data': {'response': reply}
-        }), 200
+    def worker():
+        try:
+            # 分段检查取消：先把上下文拼好
+            if cancel_flag.is_set():
+                return
+            reply = LLMService.chat(user_message, system_prompt=system_prompt)
+            if not cancel_flag.is_set():
+                result[0] = reply
+        except Exception as e:
+            error_msg[0] = str(e)
 
-    except Exception as e:
-        return jsonify({'code': 500, 'message': f'AI 服务暂时不可用: {str(e)}'}), 500
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    # 每 0.5 秒检查一次取消标志
+    while thread.is_alive():
+        if cancel_flag.wait(0.5):
+            del _cancel_flags[user_id]
+            return jsonify({'code': 200, 'data': {'response': '⏹️ 已取消'}}), 200
+
+    del _cancel_flags[user_id]
+
+    if error_msg[0]:
+        return jsonify({'code': 500, 'message': f'AI 服务暂时不可用: {error_msg[0]}'}), 500
+
+    if result[0] is None:
+        return jsonify({'code': 500, 'message': 'AI 服务暂时不可用'}), 500
+
+    return jsonify({
+        'code': 200,
+        'data': {'response': result[0]}
+    }), 200
+
+
+@ai_bp.route('/ai/cancel', methods=['POST'])
+def cancel_chat():
+    """取消当前 AI 对话"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+    if user_id and user_id in _cancel_flags:
+        _cancel_flags[user_id].set()
+        return jsonify({'code': 200, 'message': '已取消'}), 200
+    return jsonify({'code': 200, 'message': '无需取消'}), 200
 
 
 @ai_bp.route('/ai/switch_model', methods=['POST'])

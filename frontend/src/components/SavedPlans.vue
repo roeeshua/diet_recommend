@@ -18,6 +18,10 @@
                     <div class="card-header">
                         <span class="plan-name">🍱 {{ plan.plan_name }}</span>
                         <div class="card-actions">
+                            <el-button size="small" @click="editPlan(plan)">
+                                <el-icon><Edit /></el-icon>
+                                编辑
+                            </el-button>
                             <el-button type="success" size="small" @click="checkinPlan(plan)">
                                 <el-icon><Checked /></el-icon>
                                 一键打卡
@@ -70,7 +74,7 @@
         <el-empty v-else description="暂无计划，先去「饮食计划」页面生成并保存吧" />
         
         <!-- 自定义计划弹窗 -->
-        <el-dialog v-model="showCreateDialog" title="自定义计划" width="800px">
+        <el-dialog v-model="showCreateDialog" :title="editingPlanId ? '修改计划' : '自定义计划'" width="800px" @close="editingPlanId = null">
             <el-form :model="customPlan" label-width="100px">
                 <el-form-item label="计划名称" required>
                     <el-input v-model="customPlan.plan_name" placeholder="如：健身增肌餐" />
@@ -323,7 +327,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Checked } from '@element-plus/icons-vue'
+import { Plus, Delete, Checked, Edit } from '@element-plus/icons-vue'
 import api from '../api'
 
 const checkinDate = ref('')
@@ -339,6 +343,7 @@ const showCustomFoodDialog = ref(false)
 const showCheckinDialog = ref(false)
 let currentCheckinPlan = null
 let currentMealType = 'breakfast'
+let editingPlanId = null
 
 // 预设特征选项（24种）
 const featureOptions = [
@@ -516,21 +521,36 @@ const saveCustomPlan = async () => {
     const totalCalories = calculateTotalCalories()
     
     saving.value = true
-    const res = await api.post('/plan/save', {
-        user_id: userData.id,
-        plan_name: customPlan.value.plan_name,
-        foods: {
-            breakfast: customPlan.value.breakfast,
-            lunch: customPlan.value.lunch,
-            dinner: customPlan.value.dinner
-        },
-        total_calories: totalCalories
-    })
+    let res
+    if (editingPlanId) {
+        res = await api.put(`/plan/${editingPlanId}`, {
+            user_id: userData.id,
+            plan_name: customPlan.value.plan_name,
+            foods: {
+                breakfast: customPlan.value.breakfast,
+                lunch: customPlan.value.lunch,
+                dinner: customPlan.value.dinner
+            },
+            total_calories: totalCalories
+        })
+    } else {
+        res = await api.post('/plan/save', {
+            user_id: userData.id,
+            plan_name: customPlan.value.plan_name,
+            foods: {
+                breakfast: customPlan.value.breakfast,
+                lunch: customPlan.value.lunch,
+                dinner: customPlan.value.dinner
+            },
+            total_calories: totalCalories
+        })
+    }
     saving.value = false
-    
+
     if (res.code === 200) {
-        ElMessage.success('计划保存成功')
+        ElMessage.success(editingPlanId ? '计划修改成功' : '计划保存成功')
         showCreateDialog.value = false
+        editingPlanId = null
         customPlan.value = {
             plan_name: '',
             breakfast: [],
@@ -544,6 +564,18 @@ const saveCustomPlan = async () => {
 }
 
 // 删除计划
+// 编辑计划
+const editPlan = (plan) => {
+    editingPlanId = plan.id
+    customPlan.value = {
+        plan_name: plan.plan_name,
+        breakfast: plan.foods.breakfast ? [...plan.foods.breakfast] : [],
+        lunch: plan.foods.lunch ? [...plan.foods.lunch] : [],
+        dinner: plan.foods.dinner ? [...plan.foods.dinner] : []
+    }
+    showCreateDialog.value = true
+}
+
 const deletePlan = async (planId) => {
     ElMessageBox.confirm('确定删除这个计划吗？', '提示', { type: 'warning' }).then(async () => {
         const res = await api.delete(`/plan/${planId}?user_id=${userData.id}`)

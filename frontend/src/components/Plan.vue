@@ -5,10 +5,7 @@
         
         <div class="actions">
             <el-button type="primary" @click="generatePlan" :loading="generating">
-                🤖 生成今日计划
-            </el-button>
-            <el-button type="success" @click="regeneratePlan" :loading="generating" plain>
-                🔄 换一批
+                {{ currentPlan ? '🔄 换一批' : '🤖 生成今日计划' }}
             </el-button>
         </div>
         
@@ -83,20 +80,25 @@ const generatePlan = async () => {
     generating.value = true
     const res = await api.post('/plan/generate', { user_id: userData.id })
     generating.value = false
-    
+
     if (res.code === 200) {
         currentPlan.value = res.data
         planName.value = `AI计划${new Date().toLocaleDateString()}`
         ElMessage.success('计划生成成功')
+        const cal = currentPlan.value.total_calories
+        const range = currentPlan.value._cal_range
+        if (range && cal != null) {
+            if (cal < range.low) {
+                ElMessage.warning(`当前计划 ${cal} 千卡，偏低（建议 ${range.low}~${range.high}），可自行添加食材增加热量`)
+            } else if (cal > range.high) {
+                ElMessage.warning(`当前计划 ${cal} 千卡，偏高（建议 ${range.low}~${range.high}），可自行减少食材降低热量`)
+            }
+        }
     } else {
         ElMessage.error(res.message)
     }
 }
 
-
-const regeneratePlan = () => {
-    generatePlan()  
-}
 
 const savePlan = async () => {
     if (!planName.value) {

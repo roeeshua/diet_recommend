@@ -42,8 +42,22 @@ class PlanService:
             f"饮食特征：{profile_desc}"
         )
         retrieved_foods = RetrievalService.search_by_category(query)
-        food_list = [f"{f['name']}({f['category']},{f['calories']}卡)" for f in retrieved_foods]
+        # 包含营养评分的食材信息，让 AI 能够计算营养均衡
+        food_list = [
+            f"{f['name']}({f['category']},{f['calories']}卡,"
+            f"蛋白质{f['protein']}分/纤维{f['fiber']}分/维生素{f['vitamins']}分"
+            f"/糖{f['sugar']}分/脂肪{f['saturated_fat']}分/钠{f['sodium']}分)"
+            for f in retrieved_foods
+        ]
         food_knowledge = '、'.join(food_list)
+
+        target_calories = int(user.weight * 30) if user.weight else None
+        _cal_example = target_calories or 1800
+        cal_note = (
+            f"\n【⚠️ 最重要：控制总热量】"
+            f"\n一日三餐的总热量必须控制在 ** {target_calories - 300}~{target_calories + 300} 大卡**"
+            f"\n这是根据用户体重 {int(user.weight)}kg × 30 计算得出的目标值，请优先满足此项。"
+        ) if target_calories else ""
 
         prompt = f"""你是一个饮食健康专家。请为用户生成一日三餐饮食计划。
 
@@ -51,7 +65,7 @@ class PlanService:
 - 年龄：{user.age or '未知'}岁
 - 性别：{gender_text}
 - 身高：{user.height or '未知'}cm
-- 体重：{user.weight or '未知'}kg
+- 体重：{user.weight or '未知'}kg{cal_note}
 
 【用户手动设置的偏好 - 请优先满足】
 {pref_text}
@@ -62,40 +76,78 @@ class PlanService:
 【检索到的相关食材库 - 请优先从以下精选食材中选择】
 {food_knowledge}
 
-## 要求
+## 营养均衡要求
+每种食材都有六项营养评分（十分制），一日三餐的每项累计总分应在合理范围：
+- 蛋白质、膳食纤维、微量元素：**30-70 分**
+- 添加糖、饱和脂肪、钠：**10-50 分**（越低越好）
+
+## 其他要求
 1. 早餐至少包含1种食材，午餐至少包含2种，晚餐至少包含2种
 2. 严格从上面「检索到的相关食材库」中选择
-3. 请尽量多样化，考虑不同菜系和烹饪方式
-4. 蛋白质来源可以轮换
+3. 允许同一种食材在多餐中出现（例如早餐和午餐都可以有鸡蛋）。**善用此规则来调整总热量**——热量不够时就多加食材或重复使用高热量食材，热量超了就减少食材或用低热量食材替换。
 
 请严格按照以下JSON格式返回，只返回JSON，不要包含其他内容：
-{{"breakfast": ["食材名称1", "食材名称2"], "lunch": ["食材名称1", "食材名称2", "食材名称3"], "dinner": ["食材名称1", "食材名称2"], "total_calories": 总卡路里数值}}
-例如：{{"breakfast": ["燕麦", "牛奶"], "lunch": ["鸡胸肉", "西兰花", "糙米饭"], "dinner": ["鳕鱼", "娃娃菜", "山药"], "total_calories": 1200}}"""
+{{"breakfast": ["食材名称1", "食材名称2"], "lunch": ["食材名称1", "食材名称2", "食材名称3"], "dinner": ["食材名称1", "食材名称2"], "total_calories": {_cal_example}}}"""
 
-        response = LLMService.chat(prompt)
-        plan_data = PlanService._parse_plan_json(response)
+# 热量校准：不在合理范围内就重试（最多3次）
 
-        if not plan_data:
-            return None
+        cal_low = target_calories - 300
+        cal_high = target_calories + 300
+        best_plan = None
+        best_diff = float('inf')
+        cal_range = {'low': cal_low, 'high': cal_high, 'target': target_calories}
 
-        # 解析三餐食材
-        breakfast = PlanService._match_foods(plan_data.get('breakfast', []))
-        lunch = PlanService._match_foods(plan_data.get('lunch', []))
-        dinner = PlanService._match_foods(plan_data.get('dinner', []))
 
-        # 补全不足的餐类
-        breakfast = PlanService._fill_meal(breakfast, retrieved_foods, '早餐', PlanService.MIN_MEAL_ITEMS['breakfast'])
-        lunch = PlanService._fill_meal(lunch, retrieved_foods, '午餐', PlanService.MIN_MEAL_ITEMS['lunch'])
-        dinner = PlanService._fill_meal(dinner, retrieved_foods, '晚餐', PlanService.MIN_MEAL_ITEMS['dinner'])
 
-        total = sum(f.get('calories', 0) for f in breakfast + lunch + dinner)
+        for attempt in range(3):
 
-        return {
-            'breakfast': breakfast,
-            'lunch': lunch,
-            'dinner': dinner,
-            'total_calories': total
-        }
+            response = LLMService.chat(prompt)
+
+            plan_data = PlanService._parse_plan_json(response)
+
+
+
+            if not plan_data:
+
+                continue
+
+
+
+            breakfast = PlanService._match_foods(plan_data.get('breakfast', []))
+
+            lunch = PlanService._match_foods(plan_data.get('lunch', []))
+
+            dinner = PlanService._match_foods(plan_data.get('dinner', []))
+
+
+
+            breakfast = PlanService._fill_meal(breakfast, retrieved_foods, '早餐', PlanService.MIN_MEAL_ITEMS['breakfast'])
+
+            lunch = PlanService._fill_meal(lunch, retrieved_foods, '午餐', PlanService.MIN_MEAL_ITEMS['lunch'])
+
+            dinner = PlanService._fill_meal(dinner, retrieved_foods, '晚餐', PlanService.MIN_MEAL_ITEMS['dinner'])
+
+
+
+            total = sum(f.get('calories', 0) for f in breakfast + lunch + dinner)
+
+            diff = abs(total - target_calories)
+
+
+
+            if diff < best_diff:
+
+                best_plan = {'breakfast': breakfast, 'lunch': lunch, 'dinner': dinner, 'total_calories': total}
+
+                best_diff = diff
+
+
+
+            if cal_low <= total <= cal_high:
+                return best_plan
+        if best_plan is not None:
+            best_plan['_cal_range'] = cal_range
+        return best_plan or {'breakfast': [], 'lunch': [], 'dinner': [], 'total_calories': 0}
 
     @staticmethod
     def _parse_plan_json(text: str) -> dict:
@@ -204,6 +256,21 @@ class PlanService:
         """获取用户所有计划"""
         plans = UserPlan.query.filter_by(user_id=user_id).order_by(UserPlan.created_at.desc()).all()
         return [plan.to_dict() for plan in plans]
+
+    @staticmethod
+    def update_plan(plan_id: int, user_id: int, plan_name: str = None, foods: dict = None, total_calories: int = None):
+        """修改计划"""
+        plan = UserPlan.query.filter_by(id=plan_id, user_id=user_id).first()
+        if not plan:
+            return None, "计划不存在"
+        if plan_name is not None:
+            plan.plan_name = plan_name
+        if foods is not None:
+            plan.foods = foods
+        if total_calories is not None:
+            plan.total_calories = total_calories
+        db.session.commit()
+        return plan, None
 
     @staticmethod
     def delete_plan(plan_id: int, user_id: int):

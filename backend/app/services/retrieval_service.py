@@ -255,17 +255,27 @@ class RetrievalService:
     @classmethod
     def _fallback_search(cls, query: str, top_k: int = 8) -> List[dict]:
         """当 sentence-transformers 不可用时，使用关键词匹配回退"""
-        print("⚠️ 使用关键词匹配回退（建议安装 sentence-transformers 以获得语义检索能力）")
-        query_lower = query.lower()
+        # 从查询中提取有意义的食材关键词
+        stop_words = {'用户', '是个', '岁的', '身高', '体重', '饮食', '偏好', '特征',
+                      '基于', '打卡', '天', '根据', '信息'}
+        keywords = set()
+        for chunk in query.replace('：', ':').replace('，', ',').replace('、', ',').replace('。', ',').replace(' ', ',').split(','):
+            chunk = chunk.strip()
+            if not chunk or ':' in chunk or '：' in chunk:
+                continue
+            # 取每个 chunk 中有意义的词
+            for word in chunk.split(' '):
+                word = word.strip()
+                if word and word not in stop_words and len(word) >= 2:
+                    keywords.add(word)
 
         foods = Food.query.all()
         scored = []
         for food in foods:
             score = 0
             text = cls._build_food_text(food).lower()
-            for keyword in query_lower.replace('，', ',').replace('、', ',').split(','):
-                keyword = keyword.strip()
-                if keyword and keyword in text:
+            for kw in keywords:
+                if kw.lower() in text:
                     score += 1
             if score > 0:
                 scored.append((score, food))

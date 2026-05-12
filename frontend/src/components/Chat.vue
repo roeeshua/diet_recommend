@@ -92,7 +92,10 @@
                 @keyup.enter="sendMessage"
                 :disabled="loading"
             />
-            <el-button type="primary" @click="sendMessage" :loading="loading">
+            <el-button v-if="loading" type="danger" @click="cancelRequest">
+                取消
+            </el-button>
+            <el-button v-else type="primary" @click="sendMessage">
                 发送
             </el-button>
         </div>
@@ -107,6 +110,7 @@ import api from '../api'
 const loading = ref(false)
 const inputMessage = ref('')
 const messagesContainer = ref(null)
+let abortController = null
 const showContext = ref(false)
 const includeProfile = ref(true)
 const includePreference = ref(true)  
@@ -172,36 +176,56 @@ const sendMessage = async () => {
     await scrollToBottom()
     
     loading.value = true
-    
+    abortController = new AbortController()
+
     try {
         const requestBody = {
             user_id: userData.id,
             message: userMsg,
             include_profile: includeProfile.value,
-            include_preference: includePreference.value,  
+            include_preference: includePreference.value,
             include_user_profile: includeUserProfile.value,
             include_history: includeHistory.value
         }
-        
+
         if (includeHistory.value && dateRange.value) {
             requestBody.start_date = dateRange.value[0]
             requestBody.end_date = dateRange.value[1]
         }
-        
-        const res = await api.post('/ai/chat', requestBody)
-        
+
+        const res = await api.post('/ai/chat', requestBody, { signal: abortController.signal })
+
         if (res.code === 200) {
             messages.value.push({ role: 'assistant', content: res.data.response })
         } else {
             messages.value.push({ role: 'assistant', content: res.message || '抱歉，我现在无法回答，请稍后再试。' })
         }
     } catch (error) {
-        console.error('AI 对话失败:', error)
-        messages.value.push({ role: 'assistant', content: '网络错误，请稍后再试。' })
+        if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+            messages.value.push({ role: 'assistant', content: '⏹️ 已取消提问' })
+        } else {
+            console.error('AI 对话失败:', error)
+            messages.value.push({ role: 'assistant', content: '网络错误，请稍后再试。' })
+        }
     }
-    
+
     loading.value = false
+    abortController = null
     await scrollToBottom()
+}
+
+// 取消提问
+const cancelRequest = async () => {
+    if (abortController) {
+        abortController.abort()
+        abortController = null
+    }
+    // 通知后端停止处理
+    try {
+        await api.post('/ai/cancel', { user_id: userData.id })
+    } catch {
+        // 忽略取消请求本身的错误
+    }
 }
 
 const sendQuickQuestion = (question) => {
@@ -211,6 +235,9 @@ const sendQuickQuestion = (question) => {
 
 // 清空会话历史
 const clearHistory = () => {
+    if (loading.value) {
+        cancelRequest()
+    }
     messages.value = [
         { role: 'assistant', content: '你好！我是你的 AI 饮食助手。会话历史已清空，有什么我可以帮你的吗？' }
     ]

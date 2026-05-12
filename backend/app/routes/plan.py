@@ -43,6 +43,26 @@ def get_plans(user_id):
     plans = PlanService.get_user_plans(user_id)
     return jsonify({'code': 200, 'data': plans}), 200
 
+@plan_bp.route('/plan/<int:plan_id>', methods=['PUT'])
+def update_plan(plan_id):
+    """修改计划"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({'code': 400, 'message': 'user_id 不能为空'}), 400
+
+    plan, error = PlanService.update_plan(
+        plan_id, user_id,
+        plan_name=data.get('plan_name'),
+        foods=data.get('foods'),
+        total_calories=data.get('total_calories')
+    )
+    if error:
+        return jsonify({'code': 404, 'message': error}), 404
+
+    return jsonify({'code': 200, 'message': '修改成功', 'data': plan.to_dict()}), 200
+
+
 @plan_bp.route('/plan/<int:plan_id>', methods=['DELETE'])
 def delete_plan(plan_id):
     """删除计划"""

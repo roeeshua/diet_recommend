@@ -41,6 +41,9 @@ help:
 	@echo ""
 	@echo "$(YELLOW)服务管理:$(NC)"
 	@echo "  make stop             - 停止所有服务"
+	@echo "  make stop-backend     - 仅停止后端"
+	@echo "  make stop-frontend    - 仅停止前端"
+	@echo "  make stop-ollama      - 仅停止 Ollama"
 	@echo "  make status           - 查看运行状态"
 	@echo "  make logs             - 查看后端日志"
 	@echo "  make clean            - 清理依赖和缓存"
@@ -120,10 +123,19 @@ init-db:
 
 # ==================== 服务管理 ====================
 
-stop:
-	@echo "$(YELLOW)停止服务...$(NC)"
-	fuser -k 5000/tcp 2>/dev/null; fuser -k 5173/tcp 2>/dev/null; echo "  WSL 进程已停止"
-	cmd.exe /c "taskkill /F /IM ollama.exe 2>nul" && echo "  Ollama 已停止" || true
+stop-backend:
+	@echo "$(YELLOW)停止后端...$(NC)"
+	fuser -k 5000/tcp 2>/dev/null && echo "  后端已停止" || echo "  后端未运行"
+
+stop-frontend:
+	@echo "$(YELLOW)停止前端...$(NC)"
+	fuser -k 5173/tcp 2>/dev/null && echo "  前端已停止" || echo "  前端未运行"
+
+stop-ollama:
+	@echo "$(YELLOW)停止 Ollama...$(NC)"
+	cmd.exe /c "taskkill /F /IM ollama.exe 2>nul" >/dev/null 2>&1 && echo "  Ollama 已停止" || echo "  Ollama 未运行"
+
+stop: stop-backend stop-frontend stop-ollama
 	@echo "$(GREEN) 所有服务已停止$(NC)"
 
 status:
